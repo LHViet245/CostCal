@@ -61,18 +61,30 @@ const elements = {
 
     // Results - Offline
     offlinePrice: document.getElementById('offlinePrice'),
+    offlineCost: document.getElementById('offlineCost'),
     offlineTax: document.getElementById('offlineTax'),
+    offlinePlatformFee: document.getElementById('offlinePlatformFee'),
+    offlineAdFee: document.getElementById('offlineAdFee'),
+    offlineTotalDeduct: document.getElementById('offlineTotalDeduct'),
     offlineProfit: document.getElementById('offlineProfit'),
 
     // Results - Grab
     grabPrice: document.getElementById('grabPrice'),
+    grabCost: document.getElementById('grabCost'),
     grabTax: document.getElementById('grabTax'),
+    grabPlatformFee: document.getElementById('grabPlatformFee'),
+    grabAdFeeAmount: document.getElementById('grabAdFeeAmount'),
+    grabTotalDeduct: document.getElementById('grabTotalDeduct'),
     grabProfit: document.getElementById('grabProfit'),
     grabError: document.getElementById('grabError'),
 
     // Results - Shopee
     shopeePrice: document.getElementById('shopeePrice'),
+    shopeeCost: document.getElementById('shopeeCost'),
     shopeeTax: document.getElementById('shopeeTax'),
+    shopeePlatformFee: document.getElementById('shopeePlatformFee'),
+    shopeeAdFeeAmount: document.getElementById('shopeeAdFeeAmount'),
+    shopeeTotalDeduct: document.getElementById('shopeeTotalDeduct'),
     shopeeProfit: document.getElementById('shopeeProfit'),
     shopeeError: document.getElementById('shopeeError')
 };
@@ -206,12 +218,17 @@ function calculateChannel(channel, realCost, profitRate) {
     const tax = sellingPrice * TAX_RATE;
     const platformFeeAmount = sellingPrice * platformFee;
     const adFeeAmount = sellingPrice * adFee;
-    const actualProfit = sellingPrice - realCost - tax - platformFeeAmount - adFeeAmount;
+    const totalDeductAmount = realCost + tax + platformFeeAmount + adFeeAmount;
+    const actualProfit = sellingPrice - totalDeductAmount;
 
     return {
         error: false,
         sellingPrice,
+        realCost,
         tax,
+        platformFeeAmount,
+        adFeeAmount,
+        totalDeductAmount,
         actualProfit,
         totalDeductionPercent: (totalDeduction * 100).toFixed(1)
     };
@@ -241,7 +258,11 @@ function updateResults() {
     channels.forEach(channel => {
         const result = calculateChannel(channel, realCost, profitRate);
         const priceEl = elements[`${channel}Price`];
+        const costEl = elements[`${channel}Cost`];
         const taxEl = elements[`${channel}Tax`];
+        const platformFeeEl = elements[`${channel}PlatformFee`];
+        const adFeeEl = channel === 'offline' ? elements.offlineAdFee : elements[`${channel}AdFeeAmount`];
+        const totalDeductEl = elements[`${channel}TotalDeduct`];
         const profitEl = elements[`${channel}Profit`];
         const errorEl = elements[`${channel}Error`];
         const cardEl = priceEl.closest('.channel-card');
@@ -254,7 +275,11 @@ function updateResults() {
                 errorEl.innerHTML = `⚠️ Tổng phí vượt 100%!<br>Giảm QC xuống dưới ${result.maxAdFee}%`;
             }
             priceEl.textContent = '---';
+            if (costEl) costEl.textContent = '---';
             taxEl.textContent = '---';
+            if (platformFeeEl) platformFeeEl.textContent = '---';
+            if (adFeeEl) adFeeEl.textContent = '---';
+            if (totalDeductEl) totalDeductEl.textContent = '---';
             profitEl.textContent = '--- ❌';
         } else {
             // Show normal state
@@ -263,7 +288,11 @@ function updateResults() {
                 errorEl.classList.add('hidden');
             }
             priceEl.textContent = formatCurrency(result.sellingPrice);
+            if (costEl) costEl.textContent = formatCurrency(result.realCost);
             taxEl.textContent = formatCurrency(result.tax);
+            if (platformFeeEl) platformFeeEl.textContent = formatCurrency(result.platformFeeAmount);
+            if (adFeeEl) adFeeEl.textContent = formatCurrency(result.adFeeAmount);
+            if (totalDeductEl) totalDeductEl.textContent = formatCurrency(result.totalDeductAmount);
             profitEl.textContent = formatCurrency(result.actualProfit) + ' ✅';
         }
     });
