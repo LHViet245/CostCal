@@ -34,35 +34,35 @@ const elements = {
     modeLabel: document.getElementById('modeLabel'),
     quickMode: document.getElementById('quickMode'),
     detailMode: document.getElementById('detailMode'),
-    
+
     // Quick mode inputs
     totalCost: document.getElementById('totalCost'),
-    
+
     // Detail mode inputs
     purchasePrice: document.getElementById('purchasePrice'),
     shippingCost: document.getElementById('shippingCost'),
     lossRate: document.getElementById('lossRate'),
     riskRate: document.getElementById('riskRate'),
     realCostDisplay: document.getElementById('realCostDisplay'),
-    
+
     // Profit
     profitRate: document.getElementById('profitRate'),
-    
+
     // Ad fees
     grabAdFee: document.getElementById('grabAdFee'),
     shopeeAdFee: document.getElementById('shopeeAdFee'),
-    
+
     // Results - Offline
     offlinePrice: document.getElementById('offlinePrice'),
     offlineTax: document.getElementById('offlineTax'),
     offlineProfit: document.getElementById('offlineProfit'),
-    
+
     // Results - Grab
     grabPrice: document.getElementById('grabPrice'),
     grabTax: document.getElementById('grabTax'),
     grabProfit: document.getElementById('grabProfit'),
     grabError: document.getElementById('grabError'),
-    
+
     // Results - Shopee
     shopeePrice: document.getElementById('shopeePrice'),
     shopeeTax: document.getElementById('shopeeTax'),
@@ -82,12 +82,13 @@ function formatCurrency(value) {
 
 /**
  * Parse number from formatted string
+ * Vietnamese format: 500.000 = 500000 (dots are thousand separators)
  */
 function parseNumber(str) {
     if (!str) return 0;
-    // Remove all non-digit characters except decimal point
-    const cleaned = str.replace(/[^\d.,]/g, '').replace(/,/g, '.');
-    const value = parseFloat(cleaned);
+    // Remove all non-digit characters (dots, commas, spaces, currency symbols)
+    const cleaned = str.replace(/[^\d]/g, '');
+    const value = parseInt(cleaned, 10);
     return isNaN(value) ? 0 : value;
 }
 
@@ -118,10 +119,10 @@ function calculateRealCost() {
     const shipping = parseNumber(elements.shippingCost.value);
     const lossRate = parseNumber(elements.lossRate.value) / 100;
     const riskRate = parseNumber(elements.riskRate.value) / 100;
-    
+
     const loss = purchase * lossRate;
     const risk = purchase * riskRate;
-    
+
     return purchase + shipping + loss + risk;
 }
 
@@ -140,13 +141,13 @@ function getTotalCost() {
  */
 function calculateChannel(channel, realCost, profitRate) {
     const platformFee = PLATFORM_FEES[channel];
-    const adFee = channel === 'offline' ? 0 : 
-                  channel === 'grab' ? parseNumber(elements.grabAdFee.value) / 100 :
-                  parseNumber(elements.shopeeAdFee.value) / 100;
-    
+    const adFee = channel === 'offline' ? 0 :
+        channel === 'grab' ? parseNumber(elements.grabAdFee.value) / 100 :
+            parseNumber(elements.shopeeAdFee.value) / 100;
+
     // Total deduction percentage
     const totalDeduction = TAX_RATE + platformFee + adFee;
-    
+
     // Check if deduction >= 100%
     if (totalDeduction >= 1) {
         return {
@@ -154,23 +155,23 @@ function calculateChannel(channel, realCost, profitRate) {
             maxAdFee: ((1 - TAX_RATE - platformFee) * 100).toFixed(1)
         };
     }
-    
+
     // Desired profit amount
     const desiredProfit = realCost * profitRate;
-    
+
     // Raw selling price
     const rawPrice = (realCost + desiredProfit) / (1 - totalDeduction);
-    
+
     // Round UP
     const roundingStep = ROUNDING_STEPS[channel];
     const sellingPrice = roundUp(rawPrice, roundingStep);
-    
+
     // Calculate actual values
     const tax = sellingPrice * TAX_RATE;
     const platformFeeAmount = sellingPrice * platformFee;
     const adFeeAmount = sellingPrice * adFee;
     const actualProfit = sellingPrice - realCost - tax - platformFeeAmount - adFeeAmount;
-    
+
     return {
         error: false,
         sellingPrice,
@@ -186,21 +187,21 @@ function calculateChannel(channel, realCost, profitRate) {
 function updateResults() {
     const realCost = getTotalCost();
     const profitRate = parseNumber(elements.profitRate.value) / 100;
-    
+
     // Update real cost display in detail mode
     if (state.isDetailMode) {
         elements.realCostDisplay.textContent = formatCurrency(realCost);
     }
-    
+
     // Skip if no cost entered
     if (realCost <= 0) {
         resetResults();
         return;
     }
-    
+
     // Calculate each channel
     const channels = ['offline', 'grab', 'shopee'];
-    
+
     channels.forEach(channel => {
         const result = calculateChannel(channel, realCost, profitRate);
         const priceEl = elements[`${channel}Price`];
@@ -208,7 +209,7 @@ function updateResults() {
         const profitEl = elements[`${channel}Profit`];
         const errorEl = elements[`${channel}Error`];
         const cardEl = priceEl.closest('.channel-card');
-        
+
         if (result.error) {
             // Show error state
             cardEl.classList.add('error');
@@ -239,17 +240,17 @@ function resetResults() {
     elements.offlinePrice.textContent = '0đ';
     elements.offlineTax.textContent = '0đ';
     elements.offlineProfit.textContent = '0đ ✅';
-    
+
     elements.grabPrice.textContent = '0đ';
     elements.grabTax.textContent = '0đ';
     elements.grabProfit.textContent = '0đ ✅';
     elements.grabError.classList.add('hidden');
-    
+
     elements.shopeePrice.textContent = '0đ';
     elements.shopeeTax.textContent = '0đ';
     elements.shopeeProfit.textContent = '0đ ✅';
     elements.shopeeError.classList.add('hidden');
-    
+
     document.querySelectorAll('.channel-card').forEach(card => {
         card.classList.remove('error');
     });
@@ -259,7 +260,7 @@ function resetResults() {
 
 function toggleDetailMode() {
     state.isDetailMode = !state.isDetailMode;
-    
+
     if (state.isDetailMode) {
         elements.quickMode.classList.add('hidden');
         elements.detailMode.classList.remove('hidden');
@@ -271,7 +272,7 @@ function toggleDetailMode() {
         elements.modeLabel.textContent = 'Chi tiết ▼';
         elements.toggleMode.classList.remove('active');
     }
-    
+
     saveSettings();
     updateResults();
 }
@@ -287,7 +288,7 @@ function saveSettings() {
         shopeeAdFee: parseNumber(elements.shopeeAdFee.value),
         isDetailMode: state.isDetailMode
     };
-    
+
     localStorage.setItem('pricingAppSettings', JSON.stringify(settings));
 }
 
@@ -297,14 +298,14 @@ function loadSettings() {
         if (saved) {
             const settings = JSON.parse(saved);
             state = { ...DEFAULT_SETTINGS, ...settings };
-            
+
             // Apply to inputs
             elements.lossRate.value = state.lossRate;
             elements.riskRate.value = state.riskRate;
             elements.profitRate.value = state.profitRate;
             elements.grabAdFee.value = state.grabAdFee;
             elements.shopeeAdFee.value = state.shopeeAdFee;
-            
+
             // Apply mode
             if (state.isDetailMode) {
                 elements.quickMode.classList.add('hidden');
@@ -323,25 +324,25 @@ function loadSettings() {
 function setupEventListeners() {
     // Mode toggle
     elements.toggleMode.addEventListener('click', toggleDetailMode);
-    
+
     // All number inputs - format and recalculate
     const numberInputs = [
         elements.totalCost,
         elements.purchasePrice,
         elements.shippingCost
     ];
-    
+
     numberInputs.forEach(input => {
         input.addEventListener('input', () => {
             updateResults();
         });
-        
+
         input.addEventListener('blur', () => {
             formatInputAsCurrency(input);
             updateResults();
         });
     });
-    
+
     // Percentage inputs - just recalculate
     const percentInputs = [
         elements.lossRate,
@@ -350,7 +351,7 @@ function setupEventListeners() {
         elements.grabAdFee,
         elements.shopeeAdFee
     ];
-    
+
     percentInputs.forEach(input => {
         input.addEventListener('input', () => {
             updateResults();
