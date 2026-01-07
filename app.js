@@ -50,12 +50,14 @@ const elements = {
     wholesaleUnit: document.getElementById('wholesaleUnit'),
     retailQty: document.getElementById('retailQty'),
     retailUnit: document.getElementById('retailUnit'),
+    packagingCost: document.getElementById('packagingCost'),
     unitCostDisplay: document.getElementById('unitCostDisplay'),
 
     // Profit
     profitRate: document.getElementById('profitRate'),
 
     // Ad fees
+    offlineAdFeeInput: document.getElementById('offlineAdFeeInput'),
     grabAdFee: document.getElementById('grabAdFee'),
     shopeeAdFee: document.getElementById('shopeeAdFee'),
 
@@ -152,12 +154,13 @@ function calculateRealCost() {
 function calculateUnitCost(totalCost) {
     const wholesaleQty = parseNumber(elements.wholesaleQty.value) || 1;
     const retailQty = parseNumber(elements.retailQty.value) || 1;
+    const packagingCost = parseNumber(elements.packagingCost.value) || 0;
 
     // Cost per wholesale unit
     const costPerWholesaleUnit = totalCost / wholesaleQty;
 
-    // Cost per retail unit
-    const costPerRetailUnit = costPerWholesaleUnit * retailQty;
+    // Cost per retail unit (including packaging)
+    const costPerRetailUnit = (costPerWholesaleUnit * retailQty) + packagingCost;
 
     return costPerRetailUnit;
 }
@@ -189,7 +192,7 @@ function getTotalCost() {
  */
 function calculateChannel(channel, realCost, profitRate) {
     const platformFee = PLATFORM_FEES[channel];
-    const adFee = channel === 'offline' ? 0 :
+    const adFee = channel === 'offline' ? parseNumber(elements.offlineAdFeeInput.value) / 100 :
         channel === 'grab' ? parseNumber(elements.grabAdFee.value) / 100 :
             parseNumber(elements.shopeeAdFee.value) / 100;
 
@@ -394,18 +397,21 @@ function setupEventListeners() {
     const numberInputs = [
         elements.totalCost,
         elements.purchasePrice,
-        elements.shippingCost
+        elements.shippingCost,
+        elements.packagingCost
     ];
 
     numberInputs.forEach(input => {
-        input.addEventListener('input', () => {
-            updateResults();
-        });
+        if (input) {
+            input.addEventListener('input', () => {
+                updateResults();
+            });
 
-        input.addEventListener('blur', () => {
-            formatInputAsCurrency(input);
-            updateResults();
-        });
+            input.addEventListener('blur', () => {
+                formatInputAsCurrency(input);
+                updateResults();
+            });
+        }
     });
 
     // Unit conversion inputs
@@ -441,15 +447,18 @@ function setupEventListeners() {
         elements.lossRate,
         elements.riskRate,
         elements.profitRate,
+        elements.offlineAdFeeInput,
         elements.grabAdFee,
         elements.shopeeAdFee
     ];
 
     percentInputs.forEach(input => {
-        input.addEventListener('input', () => {
-            updateResults();
-            saveSettings();
-        });
+        if (input) {
+            input.addEventListener('input', () => {
+                updateResults();
+                saveSettings();
+            });
+        }
     });
 }
 

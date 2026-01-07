@@ -118,8 +118,17 @@
                         </div>
                     </div>
                 </div>
+                <div class="packaging-row">
+                    <div class="input-group">
+                        <label for="packagingCost">Chi phí đóng gói/bao bì mỗi đơn vị</label>
+                        <div class="input-wrapper small packaging-input">
+                            <input type="text" id="packagingCost" inputmode="numeric" placeholder="0" value="0">
+                            <span class="unit">đ</span>
+                        </div>
+                    </div>
+                </div>
                 <div class="calculated-cost unit-cost">
-                    <span>Giá vốn/đơn vị bán:</span>
+                    <span>Tổng giá vốn/đơn vị:</span>
                     <strong id="unitCostDisplay">0đ</strong>
                 </div>
             </section>
@@ -151,9 +160,12 @@
                                 <span>Phí sàn:</span>
                                 <span>0%</span>
                             </div>
-                            <div class="fee-row">
-                                <span>Phí QC:</span>
-                                <span>0%</span>
+                            <div class="fee-row editable">
+                                <label for="offlineAdFeeInput">Phí QC:</label>
+                                <div class="inline-input">
+                                    <input type="text" id="offlineAdFeeInput" inputmode="decimal" value="0">
+                                    <span>%</span>
+                                </div>
                             </div>
                         </div>
                         <div class="channel-result">

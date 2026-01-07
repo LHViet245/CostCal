@@ -323,6 +323,24 @@ body {
     margin-top: var(--space-md);
 }
 
+.packaging-row {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px dashed var(--color-border);
+}
+
+.packaging-row label {
+    font-size: var(--font-size-sm);
+}
+
+.packaging-input {
+    max-width: 150px;
+}
+
+.packaging-input input {
+    font-size: var(--font-size-lg) !important;
+}
+
 /* ===== Hidden Class ===== */
 .hidden {
     display: none !important;
