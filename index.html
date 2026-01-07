@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="App tính giá bán cho 3 kênh: Offline, Grab, Shopee. Đảm bảo lợi nhuận sau khi trừ hết chi phí.">
+    <meta name="theme-color" content="#22c55e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Tính Giá Bán">
+    
+    <title>Tính Giá Bán Đa Kênh</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>💰 Tính Giá Bán</h1>
+            <p class="subtitle">Offline • Grab • Shopee</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Phần 1: Nhập giá vốn -->
+            <section class="input-section">
+                <div class="section-header">
+                    <h2>📦 Giá Vốn</h2>
+                    <button type="button" id="toggleMode" class="toggle-btn">
+                        <span id="modeLabel">Chi tiết ▼</span>
+                    </button>
+                </div>
+
+                <!-- Chế độ Nhanh -->
+                <div id="quickMode" class="input-group">
+                    <label for="totalCost">Giá vốn tổng</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="totalCost" inputmode="numeric" placeholder="0">
+                        <span class="unit">đ</span>
+                    </div>
+                </div>
+
+                <!-- Chế độ Chi tiết -->
+                <div id="detailMode" class="input-group hidden">
+                    <div class="detail-row">
+                        <label for="purchasePrice">Giá nhập</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="purchasePrice" inputmode="numeric" placeholder="0">
+                            <span class="unit">đ</span>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <label for="shippingCost">Phí vận chuyển</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="shippingCost" inputmode="numeric" placeholder="0">
+                            <span class="unit">đ</span>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <label for="lossRate">% Hao hụt</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="lossRate" inputmode="decimal" placeholder="5">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <label for="riskRate">% Quỹ rủi ro</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="riskRate" inputmode="decimal" placeholder="3">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                    <div class="calculated-cost">
+                        <span>Giá vốn thực:</span>
+                        <strong id="realCostDisplay">0đ</strong>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Phần 2: % Lợi nhuận -->
+            <section class="input-section">
+                <h2>📈 Lợi Nhuận Mong Muốn</h2>
+                <div class="input-group">
+                    <div class="input-wrapper profit-input">
+                        <input type="text" id="profitRate" inputmode="decimal" placeholder="20">
+                        <span class="unit">%</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Phần 3: Kết quả 3 kênh -->
+            <section class="results-section">
+                <h2>📊 Giá Bán Theo Kênh</h2>
+                
+                <div class="channels-grid">
+                    <!-- Kênh Offline -->
+                    <div class="channel-card offline">
+                        <div class="channel-header">
+                            <span class="channel-icon">🏪</span>
+                            <span class="channel-name">Offline</span>
+                        </div>
+                        <div class="channel-fees">
+                            <div class="fee-row">
+                                <span>Phí sàn:</span>
+                                <span>0%</span>
+                            </div>
+                            <div class="fee-row">
+                                <span>Phí QC:</span>
+                                <span>0%</span>
+                            </div>
+                        </div>
+                        <div class="channel-result">
+                            <div class="selling-price" id="offlinePrice">0đ</div>
+                            <div class="rounding-info">Làm tròn ↑1,000đ</div>
+                        </div>
+                        <div class="channel-details">
+                            <div class="detail-item">
+                                <span>Thuế (1.5%):</span>
+                                <span id="offlineTax">0đ</span>
+                            </div>
+                            <div class="detail-item profit">
+                                <span>Lãi thực:</span>
+                                <span id="offlineProfit">0đ ✅</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kênh Grab -->
+                    <div class="channel-card grab">
+                        <div class="channel-header">
+                            <span class="channel-icon">🛵</span>
+                            <span class="channel-name">Grab</span>
+                        </div>
+                        <div class="channel-fees">
+                            <div class="fee-row">
+                                <span>Phí sàn:</span>
+                                <span>25%</span>
+                            </div>
+                            <div class="fee-row editable">
+                                <label for="grabAdFee">Phí QC:</label>
+                                <div class="inline-input">
+                                    <input type="text" id="grabAdFee" inputmode="decimal" value="10">
+                                    <span>%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="channel-result">
+                            <div class="selling-price" id="grabPrice">0đ</div>
+                            <div class="rounding-info">Làm tròn ↑500đ</div>
+                        </div>
+                        <div class="channel-details">
+                            <div class="detail-item">
+                                <span>Thuế (1.5%):</span>
+                                <span id="grabTax">0đ</span>
+                            </div>
+                            <div class="detail-item profit">
+                                <span>Lãi thực:</span>
+                                <span id="grabProfit">0đ ✅</span>
+                            </div>
+                        </div>
+                        <div class="channel-error hidden" id="grabError">
+                            ⚠️ Tổng phí vượt quá 100%!
+                        </div>
+                    </div>
+
+                    <!-- Kênh Shopee -->
+                    <div class="channel-card shopee">
+                        <div class="channel-header">
+                            <span class="channel-icon">🛒</span>
+                            <span class="channel-name">Shopee</span>
+                        </div>
+                        <div class="channel-fees">
+                            <div class="fee-row">
+                                <span>Phí sàn:</span>
+                                <span>15%</span>
+                            </div>
+                            <div class="fee-row editable">
+                                <label for="shopeeAdFee">Phí QC:</label>
+                                <div class="inline-input">
+                                    <input type="text" id="shopeeAdFee" inputmode="decimal" value="10">
+                                    <span>%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="channel-result">
+                            <div class="selling-price" id="shopeePrice">0đ</div>
+                            <div class="rounding-info">Làm tròn ↑500đ</div>
+                        </div>
+                        <div class="channel-details">
+                            <div class="detail-item">
+                                <span>Thuế (1.5%):</span>
+                                <span id="shopeeTax">0đ</span>
+                            </div>
+                            <div class="detail-item profit">
+                                <span>Lãi thực:</span>
+                                <span id="shopeeProfit">0đ ✅</span>
+                            </div>
+                        </div>
+                        <div class="channel-error hidden" id="shopeeError">
+                            ⚠️ Tổng phí vượt quá 100%!
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>💾 Cài đặt tự động lưu</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
