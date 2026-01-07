@@ -275,7 +275,7 @@ function updateResults() {
             cardEl.classList.add('error');
             if (errorEl) {
                 errorEl.classList.remove('hidden');
-                errorEl.innerHTML = `⚠️ Tổng phí vượt 100%!<br>Giảm QC xuống dưới ${result.maxAdFee}%`;
+                errorEl.textContent = `⚠️ Tổng phí vượt 100%! Giảm QC xuống dưới ${result.maxAdFee}%`;
             }
             priceEl.textContent = '---';
             if (costEl) costEl.textContent = '---';
