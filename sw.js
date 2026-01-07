@@ -3,7 +3,7 @@
  * Enables offline functionality
  */
 
-const CACHE_NAME = 'tinh-gia-ban-v2';
+const CACHE_NAME = 'tinh-gia-ban-v3';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

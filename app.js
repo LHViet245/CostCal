@@ -45,6 +45,13 @@ const elements = {
     riskRate: document.getElementById('riskRate'),
     realCostDisplay: document.getElementById('realCostDisplay'),
 
+    // Unit conversion
+    wholesaleQty: document.getElementById('wholesaleQty'),
+    wholesaleUnit: document.getElementById('wholesaleUnit'),
+    retailQty: document.getElementById('retailQty'),
+    retailUnit: document.getElementById('retailUnit'),
+    unitCostDisplay: document.getElementById('unitCostDisplay'),
+
     // Profit
     profitRate: document.getElementById('profitRate'),
 
@@ -127,13 +134,42 @@ function calculateRealCost() {
 }
 
 /**
- * Get total cost based on current mode
+ * Calculate cost per retail unit
+ * Example: 500,000đ for 50kg, sell 1kg each → 10,000đ per unit
+ */
+function calculateUnitCost(totalCost) {
+    const wholesaleQty = parseNumber(elements.wholesaleQty.value) || 1;
+    const retailQty = parseNumber(elements.retailQty.value) || 1;
+
+    // Cost per wholesale unit
+    const costPerWholesaleUnit = totalCost / wholesaleQty;
+
+    // Cost per retail unit
+    const costPerRetailUnit = costPerWholesaleUnit * retailQty;
+
+    return costPerRetailUnit;
+}
+
+/**
+ * Get total cost based on current mode, then convert to per-unit cost
  */
 function getTotalCost() {
+    let totalCost;
     if (state.isDetailMode) {
-        return calculateRealCost();
+        totalCost = calculateRealCost();
+    } else {
+        totalCost = parseNumber(elements.totalCost.value);
     }
-    return parseNumber(elements.totalCost.value);
+
+    // Apply unit conversion
+    const unitCost = calculateUnitCost(totalCost);
+
+    // Update display
+    if (elements.unitCostDisplay) {
+        elements.unitCostDisplay.textContent = formatCurrency(unitCost);
+    }
+
+    return unitCost;
 }
 
 /**
@@ -341,6 +377,34 @@ function setupEventListeners() {
             formatInputAsCurrency(input);
             updateResults();
         });
+    });
+
+    // Unit conversion inputs
+    const unitInputs = [
+        elements.wholesaleQty,
+        elements.retailQty
+    ];
+
+    unitInputs.forEach(input => {
+        if (input) {
+            input.addEventListener('input', () => {
+                updateResults();
+            });
+        }
+    });
+
+    // Unit selectors
+    const unitSelectors = [
+        elements.wholesaleUnit,
+        elements.retailUnit
+    ];
+
+    unitSelectors.forEach(select => {
+        if (select) {
+            select.addEventListener('change', () => {
+                updateResults();
+            });
+        }
     });
 
     // Percentage inputs - just recalculate

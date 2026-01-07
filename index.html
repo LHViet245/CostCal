@@ -1,21 +1,24 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="App tính giá bán cho 3 kênh: Offline, Grab, Shopee. Đảm bảo lợi nhuận sau khi trừ hết chi phí.">
+    <meta name="description"
+        content="App tính giá bán cho 3 kênh: Offline, Grab, Shopee. Đảm bảo lợi nhuận sau khi trừ hết chi phí.">
     <meta name="theme-color" content="#22c55e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Tính Giá Bán">
-    
+
     <title>Tính Giá Bán Đa Kênh</title>
-    
+
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="app-container">
         <header class="app-header">
@@ -79,6 +82,48 @@
                 </div>
             </section>
 
+            <!-- Phần 1.5: Quy đổi đơn vị -->
+            <section class="input-section unit-section">
+                <h2>📐 Quy Đổi Đơn Vị</h2>
+                <div class="unit-row">
+                    <div class="unit-input-group">
+                        <label for="wholesaleQty">Số lượng nhập</label>
+                        <div class="input-wrapper small">
+                            <input type="text" id="wholesaleQty" inputmode="numeric" placeholder="50" value="1">
+                            <select id="wholesaleUnit">
+                                <option value="kg">kg</option>
+                                <option value="g">g</option>
+                                <option value="lít">lít</option>
+                                <option value="ml">ml</option>
+                                <option value="cái">cái</option>
+                                <option value="hộp">hộp</option>
+                                <option value="thùng">thùng</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="unit-arrow">→</div>
+                    <div class="unit-input-group">
+                        <label for="retailQty">Bán lẻ mỗi</label>
+                        <div class="input-wrapper small">
+                            <input type="text" id="retailQty" inputmode="numeric" placeholder="1" value="1">
+                            <select id="retailUnit">
+                                <option value="kg">kg</option>
+                                <option value="g">g</option>
+                                <option value="lít">lít</option>
+                                <option value="ml">ml</option>
+                                <option value="cái">cái</option>
+                                <option value="hộp">hộp</option>
+                                <option value="gói">gói</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="calculated-cost unit-cost">
+                    <span>Giá vốn/đơn vị bán:</span>
+                    <strong id="unitCostDisplay">0đ</strong>
+                </div>
+            </section>
+
             <!-- Phần 2: % Lợi nhuận -->
             <section class="input-section">
                 <h2>📈 Lợi Nhuận Mong Muốn</h2>
@@ -93,7 +138,7 @@
             <!-- Phần 3: Kết quả 3 kênh -->
             <section class="results-section">
                 <h2>📊 Giá Bán Theo Kênh</h2>
-                
+
                 <div class="channels-grid">
                     <!-- Kênh Offline -->
                     <div class="channel-card offline">
@@ -213,4 +258,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
