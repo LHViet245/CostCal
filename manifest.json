@@ -2,6 +2,7 @@
     "name": "Tính Giá Bán Đa Kênh",
     "short_name": "Tính Giá",
     "description": "App tính giá bán cho 3 kênh: Offline, Grab, Shopee. Đảm bảo lợi nhuận sau khi trừ hết chi phí.",
+    "version": "2026.01.07",
     "start_url": "./index.html",
     "display": "standalone",
     "background_color": "#f8fafc",
