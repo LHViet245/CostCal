@@ -3,7 +3,7 @@
  * Enables offline functionality
  */
 
-const CACHE_NAME = 'tinh-gia-ban-v6';
+const CACHE_PREFIX = 'tinh-gia-ban';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -15,65 +15,85 @@ const ASSETS_TO_CACHE = [
     './icons/icon-512.png'
 ];
 
+let activeCacheName = null;
+
+async function getCacheName() {
+    if (activeCacheName) return activeCacheName;
+    try {
+        const response = await fetch('./manifest.json', { cache: 'no-store' });
+        if (response.ok) {
+            const manifest = await response.json();
+            if (manifest && manifest.version) {
+                activeCacheName = `${CACHE_PREFIX}-${manifest.version}`;
+                return activeCacheName;
+            }
+        }
+    } catch (error) {
+        console.warn('Could not read manifest version:', error);
+    }
+    activeCacheName = `${CACHE_PREFIX}-v1`;
+    return activeCacheName;
+}
+
 // Install event - cache assets
 self.addEventListener('install', event => {
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('Caching app assets');
-                return cache.addAll(ASSETS_TO_CACHE);
-            })
-            .then(() => self.skipWaiting())
+        getCacheName().then(cacheName => {
+            return caches.open(cacheName)
+                .then(cache => {
+                    console.log('Caching app assets:', cacheName);
+                    return cache.addAll(ASSETS_TO_CACHE);
+                })
+                .then(() => self.skipWaiting());
+        })
     );
 });
 
 // Activate event - clean old caches
 self.addEventListener('activate', event => {
     event.waitUntil(
-        caches.keys()
-            .then(cacheNames => {
-                return Promise.all(
-                    cacheNames.map(cacheName => {
-                        if (cacheName !== CACHE_NAME) {
-                            console.log('Deleting old cache:', cacheName);
-                            return caches.delete(cacheName);
-                        }
-                    })
-                );
-            })
-            .then(() => self.clients.claim())
+        getCacheName().then(cacheName => {
+            return caches.keys()
+                .then(cacheNames => {
+                    return Promise.all(
+                        cacheNames.map(existingCache => {
+                            if (existingCache.startsWith(CACHE_PREFIX) && existingCache !== cacheName) {
+                                console.log('Deleting old cache:', existingCache);
+                                return caches.delete(existingCache);
+                            }
+                            return null;
+                        })
+                    );
+                })
+                .then(() => self.clients.claim());
+        })
     );
 });
 
 // Fetch event - cache first, then network
 self.addEventListener('fetch', event => {
     event.respondWith(
-        caches.match(event.request)
-            .then(cachedResponse => {
-                if (cachedResponse) {
-                    return cachedResponse;
+        (async () => {
+            const cacheName = await getCacheName();
+            const cachedResponse = await caches.match(event.request);
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+
+            try {
+                const response = await fetch(event.request);
+                if (!response || response.status !== 200 || response.type !== 'basic') {
+                    return response;
                 }
 
-                return fetch(event.request)
-                    .then(response => {
-                        // Don't cache non-successful responses
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
-                            return response;
-                        }
-
-                        // Clone and cache the response
-                        const responseToCache = response.clone();
-                        caches.open(CACHE_NAME)
-                            .then(cache => {
-                                cache.put(event.request, responseToCache);
-                            });
-
-                        return response;
-                    })
-                    .catch(() => {
-                        // Return offline fallback if available
-                        return caches.match('./index.html');
-                    });
-            })
+                const responseToCache = response.clone();
+                const cache = await caches.open(cacheName);
+                cache.put(event.request, responseToCache);
+                return response;
+            } catch (error) {
+                console.warn('Fetch failed, serving offline fallback:', error);
+                return caches.match('./index.html');
+            }
+        })()
     );
 });

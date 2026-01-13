@@ -127,6 +127,9 @@
                         </div>
                     </div>
                 </div>
+                <div class="unit-warning hidden" id="unitWarning">
+                    ⚠️ Không thể quy đổi giữa hai đơn vị khác nhóm. Đang tính theo tỷ lệ số lượng nhập/bán lẻ.
+                </div>
                 <div class="calculated-cost unit-cost">
                     <span>Tổng giá vốn/đơn vị:</span>
                     <strong id="unitCostDisplay">0đ</strong>
@@ -136,11 +139,63 @@
             <!-- Phần 2: % Lợi nhuận -->
             <section class="input-section">
                 <h2>📈 Lợi Nhuận Mong Muốn</h2>
-                <div class="input-group">
+                <div class="mode-switch" role="tablist" aria-label="Chế độ tính giá">
+                    <button type="button" class="mode-btn active" data-mode="profit" aria-pressed="true">
+                        Theo % lợi nhuận
+                    </button>
+                    <button type="button" class="mode-btn" data-mode="price" aria-pressed="false">
+                        Theo giá bán
+                    </button>
+                </div>
+                <div class="input-group" id="profitMode">
                     <div class="input-wrapper profit-input">
                         <input type="text" id="profitRate" inputmode="decimal" placeholder="20">
                         <span class="unit">%</span>
                     </div>
+                </div>
+                <div class="input-group hidden" id="priceMode">
+                    <label for="targetPrice">Giá bán mong muốn mỗi đơn vị</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="targetPrice" inputmode="numeric" placeholder="0">
+                        <span class="unit">đ</span>
+                    </div>
+                    <p class="helper-text">Giữ nguyên giá bán, hệ thống sẽ tính lãi thực theo từng kênh.</p>
+                </div>
+            </section>
+
+            <!-- Phần 2.5: Cài đặt chung -->
+            <section class="input-section">
+                <h2>⚙️ Cài Đặt Chung</h2>
+                <div class="settings-grid">
+                    <div class="input-group">
+                        <label for="taxRate">Thuế (%)</label>
+                        <div class="input-wrapper small">
+                            <input type="text" id="taxRate" inputmode="decimal" placeholder="1.5" value="1.5">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="priceStyle">Giá đẹp</label>
+                        <select id="priceStyle" class="select-input">
+                            <option value="none">Không áp dụng</option>
+                            <option value="ends9">Đuôi 9 (x9k)</option>
+                            <option value="ends5">Đuôi 5 (x5k)</option>
+                        </select>
+                        <p class="helper-text">Hiển thị gợi ý giá tâm lý theo kênh.</p>
+                    </div>
+                </div>
+                <div class="settings-actions">
+                    <div class="input-group">
+                        <label for="presetSelect">Preset ngành hàng</label>
+                        <select id="presetSelect" class="select-input">
+                            <option value="">Chọn preset...</option>
+                            <option value="dryGoods">Đồ khô</option>
+                            <option value="freshFood">Đồ tươi</option>
+                            <option value="dairy">Sữa &amp; đồ uống</option>
+                            <option value="frozen">Đồ đông lạnh</option>
+                        </select>
+                    </div>
+                    <button type="button" id="resetBtn" class="reset-btn">Đặt lại mặc định</button>
                 </div>
             </section>
 
@@ -171,6 +226,10 @@
                         <div class="channel-result">
                             <div class="selling-price" id="offlinePrice">0đ</div>
                             <div class="rounding-info">Làm tròn ↑1,000đ</div>
+                            <div class="price-hints">
+                                <div class="hint-item hidden" id="offlineRoundedHint">Gợi ý làm tròn: ---</div>
+                                <div class="hint-item hidden" id="offlinePsychHint">Giá đẹp: ---</div>
+                            </div>
                         </div>
                         <div class="channel-details">
                             <div class="details-header">Chi tiết khấu trừ:</div>
@@ -179,7 +238,7 @@
                                 <span id="offlineCost">0đ</span>
                             </div>
                             <div class="detail-item">
-                                <span>Thuế (1.5%):</span>
+                                <span>Thuế:</span>
                                 <span id="offlineTax">0đ</span>
                             </div>
                             <div class="detail-item">
@@ -194,9 +253,17 @@
                                 <span>Tổng khấu trừ:</span>
                                 <span id="offlineTotalDeduct">0đ</span>
                             </div>
+                            <div class="detail-item">
+                                <span>Tổng phí (%):</span>
+                                <span id="offlineTotalPercent">0%</span>
+                            </div>
                             <div class="detail-item profit">
                                 <span>Lãi thực:</span>
                                 <span id="offlineProfit">0đ ✅</span>
+                            </div>
+                            <div class="detail-item">
+                                <span>Lãi thực (%):</span>
+                                <span id="offlineProfitPercent">0%</span>
                             </div>
                         </div>
                     </div>
@@ -223,6 +290,10 @@
                         <div class="channel-result">
                             <div class="selling-price" id="grabPrice">0đ</div>
                             <div class="rounding-info">Làm tròn ↑500đ</div>
+                            <div class="price-hints">
+                                <div class="hint-item hidden" id="grabRoundedHint">Gợi ý làm tròn: ---</div>
+                                <div class="hint-item hidden" id="grabPsychHint">Giá đẹp: ---</div>
+                            </div>
                         </div>
                         <div class="channel-details">
                             <div class="details-header">Chi tiết khấu trừ:</div>
@@ -231,7 +302,7 @@
                                 <span id="grabCost">0đ</span>
                             </div>
                             <div class="detail-item">
-                                <span>Thuế (1.5%):</span>
+                                <span>Thuế:</span>
                                 <span id="grabTax">0đ</span>
                             </div>
                             <div class="detail-item">
@@ -246,9 +317,17 @@
                                 <span>Tổng khấu trừ:</span>
                                 <span id="grabTotalDeduct">0đ</span>
                             </div>
+                            <div class="detail-item">
+                                <span>Tổng phí (%):</span>
+                                <span id="grabTotalPercent">0%</span>
+                            </div>
                             <div class="detail-item profit">
                                 <span>Lãi thực:</span>
                                 <span id="grabProfit">0đ ✅</span>
+                            </div>
+                            <div class="detail-item">
+                                <span>Lãi thực (%):</span>
+                                <span id="grabProfitPercent">0%</span>
                             </div>
                         </div>
                         <div class="channel-error hidden" id="grabError">
@@ -278,6 +357,10 @@
                         <div class="channel-result">
                             <div class="selling-price" id="shopeePrice">0đ</div>
                             <div class="rounding-info">Làm tròn ↑500đ</div>
+                            <div class="price-hints">
+                                <div class="hint-item hidden" id="shopeeRoundedHint">Gợi ý làm tròn: ---</div>
+                                <div class="hint-item hidden" id="shopeePsychHint">Giá đẹp: ---</div>
+                            </div>
                         </div>
                         <div class="channel-details">
                             <div class="details-header">Chi tiết khấu trừ:</div>
@@ -286,7 +369,7 @@
                                 <span id="shopeeCost">0đ</span>
                             </div>
                             <div class="detail-item">
-                                <span>Thuế (1.5%):</span>
+                                <span>Thuế:</span>
                                 <span id="shopeeTax">0đ</span>
                             </div>
                             <div class="detail-item">
@@ -301,9 +384,17 @@
                                 <span>Tổng khấu trừ:</span>
                                 <span id="shopeeTotalDeduct">0đ</span>
                             </div>
+                            <div class="detail-item">
+                                <span>Tổng phí (%):</span>
+                                <span id="shopeeTotalPercent">0%</span>
+                            </div>
                             <div class="detail-item profit">
                                 <span>Lãi thực:</span>
                                 <span id="shopeeProfit">0đ ✅</span>
+                            </div>
+                            <div class="detail-item">
+                                <span>Lãi thực (%):</span>
+                                <span id="shopeeProfitPercent">0%</span>
                             </div>
                         </div>
                         <div class="channel-error hidden" id="shopeeError">

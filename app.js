@@ -4,7 +4,7 @@
  */
 
 // ===== Constants =====
-const TAX_RATE = 0.015; // 1.5%
+const DEFAULT_TAX_RATE = 0.015; // 1.5%
 const PLATFORM_FEES = {
     offline: 0,
     grab: 0.25,    // 25%
@@ -19,9 +19,48 @@ const DEFAULT_SETTINGS = {
     lossRate: 5,
     riskRate: 3,
     profitRate: 20,
+    targetPrice: 0,
+    taxRate: DEFAULT_TAX_RATE * 100,
     grabAdFee: 10,
     shopeeAdFee: 10,
+    offlineAdFee: 0,
+    pricingMode: 'profit',
+    priceStyle: 'none',
     isDetailMode: false
+};
+
+const UNIT_CONVERSIONS = {
+    kg: { base: 'g', factor: 1000 },
+    g: { base: 'g', factor: 1 },
+    lít: { base: 'ml', factor: 1000 },
+    ml: { base: 'ml', factor: 1 },
+    cái: { base: 'unit', factor: 1 },
+    hộp: { base: 'unit', factor: 1 },
+    thùng: { base: 'unit', factor: 1 },
+    gói: { base: 'unit', factor: 1 }
+};
+
+const PRESETS = {
+    dryGoods: {
+        lossRate: 2,
+        riskRate: 1,
+        profitRate: 25
+    },
+    freshFood: {
+        lossRate: 8,
+        riskRate: 4,
+        profitRate: 20
+    },
+    dairy: {
+        lossRate: 4,
+        riskRate: 2,
+        profitRate: 18
+    },
+    frozen: {
+        lossRate: 5,
+        riskRate: 3,
+        profitRate: 22
+    }
 };
 
 // ===== State =====
@@ -55,6 +94,16 @@ const elements = {
 
     // Profit
     profitRate: document.getElementById('profitRate'),
+    profitMode: document.getElementById('profitMode'),
+    priceMode: document.getElementById('priceMode'),
+    modeButtons: document.querySelectorAll('.mode-btn'),
+    targetPrice: document.getElementById('targetPrice'),
+
+    // Settings
+    taxRate: document.getElementById('taxRate'),
+    priceStyle: document.getElementById('priceStyle'),
+    presetSelect: document.getElementById('presetSelect'),
+    resetBtn: document.getElementById('resetBtn'),
 
     // Ad fees
     offlineAdFeeInput: document.getElementById('offlineAdFeeInput'),
@@ -69,6 +118,10 @@ const elements = {
     offlineAdFee: document.getElementById('offlineAdFee'),
     offlineTotalDeduct: document.getElementById('offlineTotalDeduct'),
     offlineProfit: document.getElementById('offlineProfit'),
+    offlineTotalPercent: document.getElementById('offlineTotalPercent'),
+    offlineProfitPercent: document.getElementById('offlineProfitPercent'),
+    offlineRoundedHint: document.getElementById('offlineRoundedHint'),
+    offlinePsychHint: document.getElementById('offlinePsychHint'),
 
     // Results - Grab
     grabPrice: document.getElementById('grabPrice'),
@@ -78,6 +131,10 @@ const elements = {
     grabAdFeeAmount: document.getElementById('grabAdFeeAmount'),
     grabTotalDeduct: document.getElementById('grabTotalDeduct'),
     grabProfit: document.getElementById('grabProfit'),
+    grabTotalPercent: document.getElementById('grabTotalPercent'),
+    grabProfitPercent: document.getElementById('grabProfitPercent'),
+    grabRoundedHint: document.getElementById('grabRoundedHint'),
+    grabPsychHint: document.getElementById('grabPsychHint'),
     grabError: document.getElementById('grabError'),
 
     // Results - Shopee
@@ -88,7 +145,14 @@ const elements = {
     shopeeAdFeeAmount: document.getElementById('shopeeAdFeeAmount'),
     shopeeTotalDeduct: document.getElementById('shopeeTotalDeduct'),
     shopeeProfit: document.getElementById('shopeeProfit'),
-    shopeeError: document.getElementById('shopeeError')
+    shopeeTotalPercent: document.getElementById('shopeeTotalPercent'),
+    shopeeProfitPercent: document.getElementById('shopeeProfitPercent'),
+    shopeeRoundedHint: document.getElementById('shopeeRoundedHint'),
+    shopeePsychHint: document.getElementById('shopeePsychHint'),
+    shopeeError: document.getElementById('shopeeError'),
+
+    // Unit warning
+    unitWarning: document.getElementById('unitWarning')
 };
 
 // ===== Utility Functions =====
@@ -102,6 +166,18 @@ function formatCurrency(value) {
 }
 
 /**
+ * Format percent with 1 decimal place
+ */
+function formatPercent(value) {
+    if (!value || isNaN(value)) return '0%';
+    const formatter = new Intl.NumberFormat('vi-VN', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+    });
+    return `${formatter.format(value)}%`;
+}
+
+/**
  * Parse number from formatted string
  * Vietnamese format: 500.000 = 500000 (dots are thousand separators)
  */
@@ -111,6 +187,34 @@ function parseNumber(str) {
     const cleaned = str.replace(/[^\d]/g, '');
     const value = parseInt(cleaned, 10);
     return isNaN(value) ? 0 : value;
+}
+
+/**
+ * Parse decimal number from string with comma/dot separator
+ */
+function parseDecimal(str) {
+    if (!str) return 0;
+    const cleaned = str.replace(/[^\d.,]/g, '');
+    if (!cleaned) return 0;
+
+    const lastSeparator = Math.max(cleaned.lastIndexOf('.'), cleaned.lastIndexOf(','));
+    if (lastSeparator === -1) {
+        const value = parseFloat(cleaned);
+        return isNaN(value) ? 0 : value;
+    }
+
+    const integerPart = cleaned.slice(0, lastSeparator).replace(/[.,]/g, '');
+    const decimalPart = cleaned.slice(lastSeparator + 1).replace(/[.,]/g, '');
+    const normalized = `${integerPart}.${decimalPart}`;
+    const value = parseFloat(normalized);
+    return isNaN(value) ? 0 : value;
+}
+
+/**
+ * Parse percent input
+ */
+function parsePercent(str) {
+    return parseDecimal(str);
 }
 
 /**
@@ -130,6 +234,42 @@ function roundUp(value, step) {
     return Math.ceil(value / step) * step;
 }
 
+/**
+ * Sanitize percent input, allowing one decimal separator
+ */
+function sanitizePercentInput(input) {
+    const value = input.value;
+    const cleaned = value.replace(/[^\d.,]/g, '');
+    const lastSeparator = Math.max(cleaned.lastIndexOf('.'), cleaned.lastIndexOf(','));
+
+    if (lastSeparator === -1) {
+        input.value = cleaned;
+        return;
+    }
+
+    const integerPart = cleaned.slice(0, lastSeparator).replace(/[.,]/g, '');
+    const decimalPart = cleaned.slice(lastSeparator + 1).replace(/[.,]/g, '');
+    if (decimalPart.length === 0 && lastSeparator === cleaned.length - 1) {
+        input.value = `${integerPart}.`;
+        return;
+    }
+    input.value = `${integerPart}.${decimalPart}`;
+}
+
+/**
+ * Suggest psychological price
+ */
+function getPsychologicalPrice(price, style) {
+    if (!price || style === 'none') return null;
+    const tail = style === 'ends9' ? 900 : 500;
+    const step = 1000;
+    let suggestion = Math.floor(price / step) * step + tail;
+    if (suggestion < price) {
+        suggestion += step;
+    }
+    return suggestion;
+}
+
 // ===== Calculation Functions =====
 
 /**
@@ -138,8 +278,8 @@ function roundUp(value, step) {
 function calculateRealCost() {
     const purchase = parseNumber(elements.purchasePrice.value);
     const shipping = parseNumber(elements.shippingCost.value);
-    const lossRate = parseNumber(elements.lossRate.value) / 100;
-    const riskRate = parseNumber(elements.riskRate.value) / 100;
+    const lossRate = parsePercent(elements.lossRate.value) / 100;
+    const riskRate = parsePercent(elements.riskRate.value) / 100;
 
     const loss = purchase * lossRate;
     const risk = purchase * riskRate;
@@ -155,12 +295,29 @@ function calculateUnitCost(totalCost) {
     const wholesaleQty = parseNumber(elements.wholesaleQty.value) || 1;
     const retailQty = parseNumber(elements.retailQty.value) || 1;
     const packagingCost = parseNumber(elements.packagingCost.value) || 0;
+    const wholesaleUnit = elements.wholesaleUnit.value;
+    const retailUnit = elements.retailUnit.value;
 
-    // Cost per wholesale unit
-    const costPerWholesaleUnit = totalCost / wholesaleQty;
+    const wholesaleMeta = UNIT_CONVERSIONS[wholesaleUnit] || { base: wholesaleUnit, factor: 1 };
+    const retailMeta = UNIT_CONVERSIONS[retailUnit] || { base: retailUnit, factor: 1 };
 
-    // Cost per retail unit (including packaging)
-    const costPerRetailUnit = (costPerWholesaleUnit * retailQty) + packagingCost;
+    let costPerRetailUnit;
+
+    if (wholesaleMeta.base === retailMeta.base) {
+        const wholesaleBaseQty = wholesaleQty * wholesaleMeta.factor;
+        const retailBaseQty = retailQty * retailMeta.factor;
+        const costPerBaseUnit = totalCost / wholesaleBaseQty;
+        costPerRetailUnit = (costPerBaseUnit * retailBaseQty) + packagingCost;
+        if (elements.unitWarning) {
+            elements.unitWarning.classList.add('hidden');
+        }
+    } else {
+        // Fallback to simple ratio if units are incompatible
+        costPerRetailUnit = (totalCost / wholesaleQty) * retailQty + packagingCost;
+        if (elements.unitWarning) {
+            elements.unitWarning.classList.remove('hidden');
+        }
+    }
 
     return costPerRetailUnit;
 }
@@ -184,45 +341,61 @@ function getTotalCost() {
         elements.unitCostDisplay.textContent = formatCurrency(unitCost);
     }
 
+    if (totalCost <= 0 && elements.unitWarning) {
+        elements.unitWarning.classList.add('hidden');
+    }
+
     return unitCost;
 }
 
 /**
  * Calculate selling price for a channel
  */
-function calculateChannel(channel, realCost, profitRate) {
+function calculateChannel(channel, realCost, profitRate, targetPrice, taxRate, priceStyle) {
     const platformFee = PLATFORM_FEES[channel];
-    const adFee = channel === 'offline' ? parseNumber(elements.offlineAdFeeInput.value) / 100 :
-        channel === 'grab' ? parseNumber(elements.grabAdFee.value) / 100 :
-            parseNumber(elements.shopeeAdFee.value) / 100;
+    const adFee = channel === 'offline' ? parsePercent(elements.offlineAdFeeInput.value) / 100 :
+        channel === 'grab' ? parsePercent(elements.grabAdFee.value) / 100 :
+            parsePercent(elements.shopeeAdFee.value) / 100;
 
     // Total deduction percentage
-    const totalDeduction = TAX_RATE + platformFee + adFee;
+    const totalDeduction = taxRate + platformFee + adFee;
 
     // Check if deduction >= 100%
     if (totalDeduction >= 1) {
         return {
             error: true,
-            maxAdFee: ((1 - TAX_RATE - platformFee) * 100).toFixed(1)
+            maxAdFee: ((1 - taxRate - platformFee) * 100).toFixed(1)
         };
     }
 
-    // Desired profit amount
-    const desiredProfit = realCost * profitRate;
+    let rawPrice = 0;
+    let sellingPrice = 0;
+    let desiredProfit = 0;
 
-    // Raw selling price
-    const rawPrice = (realCost + desiredProfit) / (1 - totalDeduction);
+    if (state.pricingMode === 'profit') {
+        desiredProfit = realCost * profitRate;
+        rawPrice = (realCost + desiredProfit) / (1 - totalDeduction);
+        const roundingStep = ROUNDING_STEPS[channel];
+        sellingPrice = roundUp(rawPrice, roundingStep);
+    } else {
+        rawPrice = targetPrice;
+        sellingPrice = rawPrice;
+    }
 
-    // Round UP
     const roundingStep = ROUNDING_STEPS[channel];
-    const sellingPrice = roundUp(rawPrice, roundingStep);
+    const roundedSuggestion = roundUp(rawPrice, roundingStep);
+    const psychologicalSuggestion = getPsychologicalPrice(
+        state.pricingMode === 'profit' ? sellingPrice : roundedSuggestion,
+        priceStyle
+    );
 
     // Calculate actual values
-    const tax = sellingPrice * TAX_RATE;
+    const tax = sellingPrice * taxRate;
     const platformFeeAmount = sellingPrice * platformFee;
     const adFeeAmount = sellingPrice * adFee;
     const totalDeductAmount = realCost + tax + platformFeeAmount + adFeeAmount;
     const actualProfit = sellingPrice - totalDeductAmount;
+    const actualProfitRate = realCost > 0 ? (actualProfit / realCost) * 100 : 0;
 
     return {
         error: false,
@@ -233,7 +406,10 @@ function calculateChannel(channel, realCost, profitRate) {
         adFeeAmount,
         totalDeductAmount,
         actualProfit,
-        totalDeductionPercent: (totalDeduction * 100).toFixed(1)
+        totalDeductionPercent: totalDeduction * 100,
+        actualProfitRate,
+        roundedSuggestion,
+        psychologicalSuggestion
     };
 }
 
@@ -242,7 +418,10 @@ function calculateChannel(channel, realCost, profitRate) {
  */
 function updateResults() {
     const realCost = getTotalCost();
-    const profitRate = parseNumber(elements.profitRate.value) / 100;
+    const profitRate = parsePercent(elements.profitRate.value) / 100;
+    const targetPrice = parseNumber(elements.targetPrice.value);
+    const taxRate = parsePercent(elements.taxRate.value) / 100;
+    const priceStyle = elements.priceStyle.value;
 
     // Update real cost display in detail mode
     if (state.isDetailMode) {
@@ -250,7 +429,7 @@ function updateResults() {
     }
 
     // Skip if no cost entered
-    if (realCost <= 0) {
+    if (realCost <= 0 || (state.pricingMode === 'price' && targetPrice <= 0)) {
         resetResults();
         return;
     }
@@ -259,7 +438,7 @@ function updateResults() {
     const channels = ['offline', 'grab', 'shopee'];
 
     channels.forEach(channel => {
-        const result = calculateChannel(channel, realCost, profitRate);
+        const result = calculateChannel(channel, realCost, profitRate, targetPrice, taxRate, priceStyle);
         const priceEl = elements[`${channel}Price`];
         const costEl = elements[`${channel}Cost`];
         const taxEl = elements[`${channel}Tax`];
@@ -267,6 +446,10 @@ function updateResults() {
         const adFeeEl = channel === 'offline' ? elements.offlineAdFee : elements[`${channel}AdFeeAmount`];
         const totalDeductEl = elements[`${channel}TotalDeduct`];
         const profitEl = elements[`${channel}Profit`];
+        const totalPercentEl = elements[`${channel}TotalPercent`];
+        const profitPercentEl = elements[`${channel}ProfitPercent`];
+        const roundedHintEl = elements[`${channel}RoundedHint`];
+        const psychHintEl = elements[`${channel}PsychHint`];
         const errorEl = elements[`${channel}Error`];
         const cardEl = priceEl.closest('.channel-card');
 
@@ -284,6 +467,10 @@ function updateResults() {
             if (adFeeEl) adFeeEl.textContent = '---';
             if (totalDeductEl) totalDeductEl.textContent = '---';
             profitEl.textContent = '--- ❌';
+            if (totalPercentEl) totalPercentEl.textContent = '---';
+            if (profitPercentEl) profitPercentEl.textContent = '---';
+            if (roundedHintEl) roundedHintEl.classList.add('hidden');
+            if (psychHintEl) psychHintEl.classList.add('hidden');
         } else {
             // Show normal state
             cardEl.classList.remove('error');
@@ -297,6 +484,26 @@ function updateResults() {
             if (adFeeEl) adFeeEl.textContent = formatCurrency(result.adFeeAmount);
             if (totalDeductEl) totalDeductEl.textContent = formatCurrency(result.totalDeductAmount);
             profitEl.textContent = formatCurrency(result.actualProfit) + ' ✅';
+            if (totalPercentEl) totalPercentEl.textContent = formatPercent(result.totalDeductionPercent);
+            if (profitPercentEl) profitPercentEl.textContent = formatPercent(result.actualProfitRate);
+
+            if (roundedHintEl) {
+                if (state.pricingMode === 'price' && result.roundedSuggestion !== result.sellingPrice) {
+                    roundedHintEl.textContent = `Gợi ý làm tròn: ${formatCurrency(result.roundedSuggestion)}`;
+                    roundedHintEl.classList.remove('hidden');
+                } else {
+                    roundedHintEl.classList.add('hidden');
+                }
+            }
+
+            if (psychHintEl) {
+                if (result.psychologicalSuggestion && elements.priceStyle.value !== 'none') {
+                    psychHintEl.textContent = `Giá đẹp: ${formatCurrency(result.psychologicalSuggestion)}`;
+                    psychHintEl.classList.remove('hidden');
+                } else {
+                    psychHintEl.classList.add('hidden');
+                }
+            }
         }
     });
 }
@@ -308,15 +515,27 @@ function resetResults() {
     elements.offlinePrice.textContent = '0đ';
     elements.offlineTax.textContent = '0đ';
     elements.offlineProfit.textContent = '0đ ✅';
+    elements.offlineTotalPercent.textContent = '0%';
+    elements.offlineProfitPercent.textContent = '0%';
+    elements.offlineRoundedHint.classList.add('hidden');
+    elements.offlinePsychHint.classList.add('hidden');
 
     elements.grabPrice.textContent = '0đ';
     elements.grabTax.textContent = '0đ';
     elements.grabProfit.textContent = '0đ ✅';
+    elements.grabTotalPercent.textContent = '0%';
+    elements.grabProfitPercent.textContent = '0%';
+    elements.grabRoundedHint.classList.add('hidden');
+    elements.grabPsychHint.classList.add('hidden');
     elements.grabError.classList.add('hidden');
 
     elements.shopeePrice.textContent = '0đ';
     elements.shopeeTax.textContent = '0đ';
     elements.shopeeProfit.textContent = '0đ ✅';
+    elements.shopeeTotalPercent.textContent = '0%';
+    elements.shopeeProfitPercent.textContent = '0%';
+    elements.shopeeRoundedHint.classList.add('hidden');
+    elements.shopeePsychHint.classList.add('hidden');
     elements.shopeeError.classList.add('hidden');
 
     document.querySelectorAll('.channel-card').forEach(card => {
@@ -345,15 +564,100 @@ function toggleDetailMode() {
     updateResults();
 }
 
+function setPricingMode(mode) {
+    if (mode !== 'profit' && mode !== 'price') return;
+    state.pricingMode = mode;
+
+    elements.modeButtons.forEach(button => {
+        const isActive = button.dataset.mode === mode;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+
+    if (mode === 'profit') {
+        if (elements.profitMode) {
+            elements.profitMode.classList.remove('hidden');
+        }
+        if (elements.priceMode) {
+            elements.priceMode.classList.add('hidden');
+        }
+    } else {
+        if (elements.profitMode) {
+            elements.profitMode.classList.add('hidden');
+        }
+        if (elements.priceMode) {
+            elements.priceMode.classList.remove('hidden');
+        }
+    }
+
+    saveSettings();
+    updateResults();
+}
+
+function applyPreset(presetKey) {
+    const preset = PRESETS[presetKey];
+    if (!preset) return;
+
+    if (state.pricingMode !== 'profit') {
+        setPricingMode('profit');
+    }
+
+    elements.lossRate.value = preset.lossRate;
+    elements.riskRate.value = preset.riskRate;
+    elements.profitRate.value = preset.profitRate;
+    updateResults();
+    saveSettings();
+}
+
+function resetAll() {
+    state = { ...DEFAULT_SETTINGS };
+    localStorage.removeItem('pricingAppSettings');
+
+    elements.lossRate.value = state.lossRate;
+    elements.riskRate.value = state.riskRate;
+    elements.profitRate.value = state.profitRate;
+    elements.targetPrice.value = '';
+    elements.taxRate.value = state.taxRate;
+    elements.grabAdFee.value = state.grabAdFee;
+    elements.shopeeAdFee.value = state.shopeeAdFee;
+    elements.offlineAdFeeInput.value = state.offlineAdFee;
+    elements.priceStyle.value = state.priceStyle;
+    elements.presetSelect.value = '';
+
+    elements.totalCost.value = '';
+    elements.purchasePrice.value = '';
+    elements.shippingCost.value = '';
+    elements.packagingCost.value = '0';
+    elements.wholesaleQty.value = '1';
+    elements.retailQty.value = '1';
+    elements.wholesaleUnit.value = 'kg';
+    elements.retailUnit.value = 'kg';
+
+    elements.quickMode.classList.remove('hidden');
+    elements.detailMode.classList.add('hidden');
+    elements.modeLabel.textContent = 'Chi tiết ▼';
+    elements.toggleMode.classList.remove('active');
+    if (elements.unitWarning) {
+        elements.unitWarning.classList.add('hidden');
+    }
+
+    setPricingMode(state.pricingMode);
+}
+
 // ===== LocalStorage =====
 
 function saveSettings() {
     const settings = {
-        lossRate: parseNumber(elements.lossRate.value),
-        riskRate: parseNumber(elements.riskRate.value),
-        profitRate: parseNumber(elements.profitRate.value),
-        grabAdFee: parseNumber(elements.grabAdFee.value),
-        shopeeAdFee: parseNumber(elements.shopeeAdFee.value),
+        lossRate: parsePercent(elements.lossRate.value),
+        riskRate: parsePercent(elements.riskRate.value),
+        profitRate: parsePercent(elements.profitRate.value),
+        targetPrice: parseNumber(elements.targetPrice.value),
+        taxRate: parsePercent(elements.taxRate.value),
+        grabAdFee: parsePercent(elements.grabAdFee.value),
+        shopeeAdFee: parsePercent(elements.shopeeAdFee.value),
+        offlineAdFee: parsePercent(elements.offlineAdFeeInput.value),
+        priceStyle: elements.priceStyle.value,
+        pricingMode: state.pricingMode,
         isDetailMode: state.isDetailMode
     };
 
@@ -371,8 +675,16 @@ function loadSettings() {
             elements.lossRate.value = state.lossRate;
             elements.riskRate.value = state.riskRate;
             elements.profitRate.value = state.profitRate;
+            elements.targetPrice.value = state.targetPrice ? new Intl.NumberFormat('vi-VN').format(state.targetPrice) : '';
+            elements.taxRate.value = state.taxRate ?? DEFAULT_SETTINGS.taxRate;
             elements.grabAdFee.value = state.grabAdFee;
             elements.shopeeAdFee.value = state.shopeeAdFee;
+            elements.offlineAdFeeInput.value = state.offlineAdFee;
+            elements.priceStyle.value = state.priceStyle || 'none';
+
+            if (state.pricingMode) {
+                setPricingMode(state.pricingMode);
+            }
 
             // Apply mode
             if (state.isDetailMode) {
@@ -381,6 +693,16 @@ function loadSettings() {
                 elements.modeLabel.textContent = 'Thu gọn ▲';
                 elements.toggleMode.classList.add('active');
             }
+        } else {
+            elements.lossRate.value = state.lossRate;
+            elements.riskRate.value = state.riskRate;
+            elements.profitRate.value = state.profitRate;
+            elements.taxRate.value = state.taxRate;
+            elements.grabAdFee.value = state.grabAdFee;
+            elements.shopeeAdFee.value = state.shopeeAdFee;
+            elements.offlineAdFeeInput.value = state.offlineAdFee;
+            elements.priceStyle.value = state.priceStyle;
+            setPricingMode(state.pricingMode);
         }
     } catch (e) {
         console.warn('Could not load settings:', e);
@@ -392,24 +714,36 @@ function loadSettings() {
 function setupEventListeners() {
     // Mode toggle
     elements.toggleMode.addEventListener('click', toggleDetailMode);
+    elements.modeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            setPricingMode(button.dataset.mode);
+        });
+    });
 
     // All number inputs - format and recalculate
     const numberInputs = [
         elements.totalCost,
         elements.purchasePrice,
         elements.shippingCost,
-        elements.packagingCost
+        elements.packagingCost,
+        elements.targetPrice
     ];
 
     numberInputs.forEach(input => {
         if (input) {
             input.addEventListener('input', () => {
                 updateResults();
+                if (input === elements.targetPrice) {
+                    saveSettings();
+                }
             });
 
             input.addEventListener('blur', () => {
                 formatInputAsCurrency(input);
                 updateResults();
+                if (input === elements.targetPrice) {
+                    saveSettings();
+                }
             });
         }
     });
@@ -447,6 +781,7 @@ function setupEventListeners() {
         elements.lossRate,
         elements.riskRate,
         elements.profitRate,
+        elements.taxRate,
         elements.offlineAdFeeInput,
         elements.grabAdFee,
         elements.shopeeAdFee
@@ -455,11 +790,29 @@ function setupEventListeners() {
     percentInputs.forEach(input => {
         if (input) {
             input.addEventListener('input', () => {
+                sanitizePercentInput(input);
                 updateResults();
                 saveSettings();
             });
         }
     });
+
+    if (elements.priceStyle) {
+        elements.priceStyle.addEventListener('change', () => {
+            updateResults();
+            saveSettings();
+        });
+    }
+
+    if (elements.presetSelect) {
+        elements.presetSelect.addEventListener('change', () => {
+            applyPreset(elements.presetSelect.value);
+        });
+    }
+
+    if (elements.resetBtn) {
+        elements.resetBtn.addEventListener('click', resetAll);
+    }
 }
 
 // ===== PWA Service Worker =====
